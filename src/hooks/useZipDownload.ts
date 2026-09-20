@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { getToken } from '@/lib/session'
 import type { ZipWorkerFile, ZipWorkerRequest, ZipWorkerResponse } from '@/workers/zipWorker'
 
 export interface ZipDownloadState {
@@ -53,7 +54,7 @@ export function useZipDownload() {
       worker.terminate()
     }
 
-    const request: ZipWorkerRequest = { files }
+    const request: ZipWorkerRequest = { files, token: getToken() }
     worker.postMessage(request)
   }, [])
 

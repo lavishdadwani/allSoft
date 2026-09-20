@@ -7,6 +7,7 @@ export interface ZipWorkerFile {
 
 export interface ZipWorkerRequest {
   files: ZipWorkerFile[]
+  token?: string | null
 }
 
 export type ZipWorkerResponse =
@@ -30,13 +31,15 @@ function dedupeName(existing: Zippable, name: string): string {
 }
 
 ctx.onmessage = async (event: MessageEvent<ZipWorkerRequest>) => {
-  const { files } = event.data
+  const { files, token } = event.data
   const zippable: Zippable = {}
   let completed = 0
 
   for (const file of files) {
     try {
-      const response = await fetch(file.url)
+      // Mirrors apiClient's interceptor: the backend expects the token in a
+      // custom "token" header, not a standard Authorization scheme.
+      const response = await fetch(file.url, token ? { headers: { token } } : undefined)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const buffer = new Uint8Array(await response.arrayBuffer())
       zippable[dedupeName(zippable, file.name)] = buffer

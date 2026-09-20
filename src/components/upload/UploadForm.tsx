@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { useUploadDocument, RECENT_UPLOADS_KEY, type RecentUpload } from '@/hooks/useUploadDocument'
-import { useQueryClient } from '@tanstack/react-query'
+import { useUploadDocument, type RecentUpload } from '@/hooks/useUploadDocument'
+import { useRecentUploads } from '@/hooks/useRecentUploads'
 import { TagInput } from '@/components/common/TagInput'
 import { isoToApiDate } from '@/lib/date'
 import {
@@ -34,14 +34,13 @@ export function UploadForm() {
   const { userId } = useAuth()
   const { showToast } = useToast()
   const uploadMutation = useUploadDocument()
-  const queryClient = useQueryClient()
+  const recentUploads = useRecentUploads()
 
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
   const [file, setFile] = useState<File | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const minorOptions = useMemo(() => minorHeadOptions(form.majorHead), [form.majorHead])
-  const recentUploads = queryClient.getQueryData<RecentUpload[]>(RECENT_UPLOADS_KEY) ?? []
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))

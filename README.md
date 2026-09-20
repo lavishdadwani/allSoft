@@ -137,6 +137,12 @@ live API directly (`curl`) to confirm what I could without a valid session:
 - File preview/download assumes each search result includes a directly fetchable file
   URL (checked in order: `file_url`, `path`, `document_path`). If the real API returns
   a different key, update `normalizeDocumentEntry` in `src/lib/normalize.ts`.
+- The preview modal embeds the file URL directly in an `<img>`/`<iframe>` (no auth
+  header attached — browsers don't let you set custom headers on those). Individual
+  downloads go through `apiClient` (token header attached) and the ZIP worker's
+  `fetch` calls also carry the token header (`src/workers/zipWorker.ts`). If the file
+  endpoint turns out to require the `token` header even for reads, preview will need
+  to switch to a blob-fetch-then-`URL.createObjectURL` approach like downloads use.
 
 ## Project structure
 
