@@ -40,7 +40,7 @@ describe('uploadFormSchema', () => {
   })
 
   it('defaults tags and remarks when omitted', () => {
-    const { tags, document_remarks, ...rest } = base
+    const { tags: _tags, document_remarks: _remarks, ...rest } = base
     const result = uploadFormSchema.safeParse(rest)
     expect(result.success).toBe(true)
     if (result.success) {
