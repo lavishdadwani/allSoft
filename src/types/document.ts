@@ -77,7 +77,7 @@ export const documentEntrySchema = z
     created_on: z.string().optional(),
   })
   .passthrough()
-export type DocumentEntryRaw = z.infer<typeof documentEntrySchema>
+export type DocumentEntryRaw = z.input<typeof documentEntrySchema>
 
 export interface DocumentEntry {
   id: string

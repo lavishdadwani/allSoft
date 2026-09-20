@@ -8,3 +8,4 @@ dist-ssr
 *.log
 .DS_Store
 coverage
+*.tsbuildinfo

@@ -4,7 +4,7 @@ let counter = 0
 
 export function normalizeDocumentEntry(raw: DocumentEntryRaw): DocumentEntry {
   const fileUrl = raw.file_url ?? raw.path ?? raw.document_path ?? ''
-  const fileName = raw.filename ?? fileUrl.split('/').pop() ?? 'document'
+  const fileName = raw.filename || (fileUrl ? fileUrl.split('/').pop() : undefined) || 'document'
   const tags = (raw.tags ?? []).map((t) => (typeof t === 'string' ? t : t.tag_name))
 
   return {
