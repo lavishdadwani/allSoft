@@ -18,6 +18,9 @@ and ZIP download — built against the API described in the provided Postman col
 | Styling | Tailwind CSS |
 | Tests | Vitest + React Testing Library |
 
+The backend Postman collection used to build this integration is included at
+[`postman/allsoft-document-management.postman_collection.json`](postman/allsoft-document-management.postman_collection.json).
+
 ## Getting started
 
 ```bash

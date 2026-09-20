@@ -1,0 +1,169 @@
+{
+	"info": {
+		"_postman_id": "e6bdcdaa-1de6-4148-9f6e-a6e6910efd8a",
+		"name": "allsoft Document Management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "324350"
+	},
+	"item": [
+		{
+			"name": "Generate OTP",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobile_number\" : \"\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://apis.allsoft.co/api/documentManagement/generateOTP",
+					"host": [
+						"https://apis.allsoft.co/api/documentManagement/"
+					],
+					"path": [
+						"generateOTP"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Validate OTP",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobile_number\" : \"\",\r\n    \"otp\" : \"\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://apis.allsoft.co/api/documentManagement/validateOTP",
+					"host": [
+						"https://apis.allsoft.co/api/documentManagement/"
+					],
+					"path": [
+						"validateOTP"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Upload File",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "token",
+						"value": "your_generated_token",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/D:/Desktop/modal_content_exceding.png"
+						},
+						{
+							"key": "data",
+							"value": "{major_head : \"Company\",minor_head : \"Work Order\",document_date : \"12-02-2024\",document_remarks : \"Test Remarks\",tags : [{tag_name: \"RMC\"},{tag_name:\"2024\"},{tag_name: \"work_order\"}],user_id:\"nitin\"}",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://apis.allsoft.co/api/documentManagement/saveDocumentEntry",
+					"host": [
+						"https://apis.allsoft.co/api/documentManagement/"
+					],
+					"path": [
+						"saveDocumentEntry"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Document",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "token",
+						"value": "your_generated_token",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"major_head\" : \"\",\r\n    \"minor_head\" : \"\",\r\n    \"from_date\" : \"\",\r\n    \"to_date\" : \"\",\r\n    \"tags\" : [{\"tag_name\" : \"\"},{\"tag_name\" : \"\"}],\r\n    \"uploaded_by\" : \"\",\r\n    \"start\" : 0,\r\n    \"length\" : 10,\r\n    \"filterId\":\"\",\r\n    \"search\": {\r\n        \"value\" : \"\"\r\n    }\r\n}   ",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://apis.allsoft.co/api/documentManagement/searchDocumentEntry",
+					"host": [
+						"https://apis.allsoft.co/api/documentManagement/"
+					],
+					"path": [
+						"searchDocumentEntry"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Document Tags",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "token",
+						"value": "your_generated_token",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"term\" : \"\"\r\n}   ",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://apis.allsoft.co/api/documentManagement/documentTags",
+					"protocol": "https",
+					"host": [
+						"apis",
+						"allsoft",
+						"co"
+					],
+					"path": [
+						"api",
+						"documentManagement",
+						"documentTags"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
