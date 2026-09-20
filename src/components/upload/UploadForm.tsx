@@ -5,6 +5,7 @@ import { useUploadDocument, type RecentUpload } from '@/hooks/useUploadDocument'
 import { useRecentUploads } from '@/hooks/useRecentUploads'
 import { TagInput } from '@/components/common/TagInput'
 import { isoToApiDate } from '@/lib/date'
+import { getErrorMessage } from '@/lib/errors'
 import {
   ACCEPTED_FILE_TYPES,
   MAJOR_HEADS,
@@ -87,10 +88,7 @@ export function UploadForm() {
           resetForm()
         },
         onError: (error) => {
-          showToast(
-            error instanceof Error ? error.message : 'Upload failed. Please try again.',
-            'error',
-          )
+          showToast(getErrorMessage(error, 'Upload failed. Please try again.'), 'error')
         },
       },
     )

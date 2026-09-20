@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { useZipDownload } from '@/hooks/useZipDownload'
 import { downloadFile } from '@/lib/download'
@@ -18,7 +19,19 @@ export function ResultsList({ documents }: ResultsListProps) {
   const [previewDoc, setPreviewDoc] = useState<DocumentEntry | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const { showToast } = useToast()
+  const { logout } = useAuth()
   const zip = useZipDownload()
+
+  // The ZIP worker fetches files independently of apiClient, so a 401 there
+  // doesn't automatically trigger the app-wide session-expired handling — do it
+  // explicitly here instead of silently shipping a ZIP with files missing.
+  useEffect(() => {
+    if (zip.unauthorizedCount > 0) {
+      showToast('Your session has expired. Please log in again.', 'error')
+      logout()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zip.unauthorizedCount])
 
   const virtualizer = useVirtualizer({
     count: documents.length,
@@ -67,10 +80,10 @@ export function ResultsList({ documents }: ResultsListProps) {
     zip.downloadZip(files, 'documents.zip')
   }
 
-  const selectionLabel = useMemo(() => {
-    if (selected.size === 0) return `Download all (${documents.length}) as ZIP`
-    return `Download selected (${selected.size}) as ZIP`
-  }, [selected.size, documents.length])
+  const selectionLabel =
+    selected.size === 0
+      ? `Download all (${documents.length}) as ZIP`
+      : `Download selected (${selected.size}) as ZIP`
 
   if (documents.length === 0) {
     return (

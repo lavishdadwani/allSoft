@@ -11,6 +11,11 @@ export function useRecentUploads(): RecentUpload[] {
     queryFn: () => Promise.resolve([]),
     initialData: [],
     staleTime: Infinity,
+    // DashboardPage unmounts UploadForm whenever the user switches to the Search
+    // tab. Without pinning gcTime, react-query would garbage-collect this
+    // observer-less cache entry after the default 5 minutes and silently reset
+    // the list to [] the next time the Upload tab is revisited.
+    gcTime: Infinity,
   })
   return data
 }

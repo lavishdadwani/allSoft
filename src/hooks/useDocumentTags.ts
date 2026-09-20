@@ -9,10 +9,10 @@ export function useDocumentTags(term: string) {
     queryFn: async () => {
       try {
         const tags = await fetchDocumentTags(term)
-        void cacheTags(tags)
+        void cacheTags(term, tags)
         return tags
       } catch (error) {
-        const cached = await getCachedTags()
+        const cached = await getCachedTags(term)
         if (cached) return cached
         throw error
       }

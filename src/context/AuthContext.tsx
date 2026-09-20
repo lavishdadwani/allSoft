@@ -1,5 +1,6 @@
-import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { generateOtp, validateOtp } from '@/api/auth'
+import { SESSION_EXPIRED_EVENT } from '@/lib/authHeader'
 import { clearSession, getMobileNumber, getToken, getUserId, setSession } from '@/lib/session'
 
 interface AuthContextValue {
@@ -38,6 +39,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserId(null)
     setMobileNumber(null)
   }, [])
+
+  // apiClient's response interceptor clears the session in localStorage on any
+  // 401, but has no way to reach into React state directly — it dispatches this
+  // event instead so isAuthenticated/token stay in sync and ProtectedRoute
+  // redirects to /login instead of continuing to render as logged in.
+  useEffect(() => {
+    window.addEventListener(SESSION_EXPIRED_EVENT, logout)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, logout)
+  }, [logout])
 
   const value = useMemo(
     () => ({

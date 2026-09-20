@@ -32,7 +32,7 @@ export const authResponseSchema = z
   })
   .passthrough()
 
-function isSuccessStatus(status: unknown): boolean {
+export function isSuccessStatus(status: unknown): boolean {
   if (typeof status === 'boolean') return status
   if (typeof status === 'number') return status === 1 || status === 200
   if (typeof status === 'string') return ['true', '1', 'success', 'ok'].includes(status.toLowerCase())

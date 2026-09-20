@@ -45,19 +45,19 @@ export async function getCachedSearchResult(
   }
 }
 
-export async function cacheTags(tags: Tag[]): Promise<void> {
+export async function cacheTags(term: string, tags: Tag[]): Promise<void> {
   try {
     const db = await getDb()
-    await db.put(TAG_STORE, tags, 'all')
+    await db.put(TAG_STORE, tags, term)
   } catch {
     // best-effort
   }
 }
 
-export async function getCachedTags(): Promise<Tag[] | undefined> {
+export async function getCachedTags(term: string): Promise<Tag[] | undefined> {
   try {
     const db = await getDb()
-    return await db.get(TAG_STORE, 'all')
+    return await db.get(TAG_STORE, term)
   } catch {
     return undefined
   }

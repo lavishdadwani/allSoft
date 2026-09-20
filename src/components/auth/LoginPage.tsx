@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { getErrorMessage } from '@/lib/errors'
 import { mobileNumberSchema, otpSchema } from '@/types/auth'
 
 type Step = 'mobile' | 'otp'
@@ -134,9 +135,4 @@ export function LoginPage() {
       </div>
     </div>
   )
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) return error.message
-  return fallback
 }

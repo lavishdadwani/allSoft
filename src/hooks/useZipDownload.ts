@@ -1,4 +1,6 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { API_BASE_URL } from '@/api/client'
+import { triggerBrowserDownload } from '@/lib/download'
 import { getToken } from '@/lib/session'
 import type { ZipWorkerFile, ZipWorkerRequest, ZipWorkerResponse } from '@/workers/zipWorker'
 
@@ -7,6 +9,7 @@ export interface ZipDownloadState {
   completed: number
   total: number
   error: string | null
+  unauthorizedCount: number
 }
 
 export function useZipDownload() {
@@ -16,7 +19,15 @@ export function useZipDownload() {
     completed: 0,
     total: 0,
     error: null,
+    unauthorizedCount: 0,
   })
+
+  // If the component unmounts mid-zip (e.g. the user navigates away), stop the
+  // worker instead of letting it keep fetching every remaining file in the
+  // background for a download nobody will receive.
+  useEffect(() => {
+    return () => workerRef.current?.terminate()
+  }, [])
 
   const downloadZip = useCallback((files: ZipWorkerFile[], zipFileName = 'documents.zip') => {
     if (files.length === 0) return
@@ -25,23 +36,15 @@ export function useZipDownload() {
     const worker = new Worker(new URL('../workers/zipWorker.ts', import.meta.url), { type: 'module' })
     workerRef.current = worker
 
-    setState({ isZipping: true, completed: 0, total: files.length, error: null })
+    setState({ isZipping: true, completed: 0, total: files.length, error: null, unauthorizedCount: 0 })
 
     worker.onmessage = (event: MessageEvent<ZipWorkerResponse>) => {
       const msg = event.data
       if (msg.type === 'progress') {
         setState((prev) => ({ ...prev, completed: msg.completed, total: msg.total }))
       } else if (msg.type === 'done') {
-        const blob = new Blob([msg.buffer], { type: 'application/zip' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = zipFileName
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        URL.revokeObjectURL(url)
-        setState((prev) => ({ ...prev, isZipping: false }))
+        triggerBrowserDownload(new Blob([msg.buffer], { type: 'application/zip' }), zipFileName)
+        setState((prev) => ({ ...prev, isZipping: false, unauthorizedCount: msg.unauthorizedCount }))
         worker.terminate()
       } else if (msg.type === 'error') {
         setState((prev) => ({ ...prev, isZipping: false, error: msg.message }))
@@ -54,7 +57,7 @@ export function useZipDownload() {
       worker.terminate()
     }
 
-    const request: ZipWorkerRequest = { files, token: getToken() }
+    const request: ZipWorkerRequest = { files, token: getToken(), apiOrigin: new URL(API_BASE_URL).origin }
     worker.postMessage(request)
   }, [])
 

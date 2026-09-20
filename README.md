@@ -113,6 +113,25 @@ scope above.
 - **`minor_head` options** (names for Personal, departments for Professional) are
   static lists (`src/types/document.ts`) per the assignment brief — the API doesn't
   expose an endpoint for these.
+- **`user_id`**: `validateOTP` only returns a token, no user profile — so the app
+  uses the mobile number itself as `user_id` for `saveDocumentEntry` /
+  `searchDocumentEntry`. Worth confirming this is what the backend actually expects
+  once a real login can be tested end-to-end.
+- **Auth consistency across three code paths**: the backend expects a custom `token`
+  header (not `Authorization: Bearer`) on every authenticated request. This is
+  centralized as `AUTH_HEADER_NAME` (`src/lib/authHeader.ts`) and used by (1)
+  `apiClient`'s axios interceptor for normal requests/downloads, (2) the preview
+  modal, which fetches the file as an authenticated blob rather than setting
+  `<img>`/`<iframe> src` directly (browsers won't let you attach custom headers to
+  those), and (3) the ZIP web worker's own `fetch` calls, which only attach the
+  token when the file URL's origin matches the API's origin (so an unrelated
+  CDN/pre-signed URL doesn't get an unexpected header). A 401 from `apiClient`
+  clears the session and dispatches a `dms:session-expired` window event that
+  `AuthContext` listens for, so the UI actually drops back to the login screen
+  instead of silently continuing to look "logged in" while every request fails.
+  The ZIP worker can't go through `apiClient`, so it reports back an
+  `unauthorizedCount`; `ResultsList` treats a nonzero count as the same
+  session-expired signal.
 
 ## Known gaps / things to verify against the live backend
 
@@ -137,12 +156,11 @@ live API directly (`curl`) to confirm what I could without a valid session:
 - File preview/download assumes each search result includes a directly fetchable file
   URL (checked in order: `file_url`, `path`, `document_path`). If the real API returns
   a different key, update `normalizeDocumentEntry` in `src/lib/normalize.ts`.
-- The preview modal embeds the file URL directly in an `<img>`/`<iframe>` (no auth
-  header attached — browsers don't let you set custom headers on those). Individual
-  downloads go through `apiClient` (token header attached) and the ZIP worker's
-  `fetch` calls also carry the token header (`src/workers/zipWorker.ts`). If the file
-  endpoint turns out to require the `token` header even for reads, preview will need
-  to switch to a blob-fetch-then-`URL.createObjectURL` approach like downloads use.
+- Preview, single-file download, and ZIP download all authenticate consistently now
+  (see "Auth consistency across three code paths" above) — this was a real gap in an
+  earlier version of this app and is now fixed and covered by manual verification of
+  the code paths (not yet a live end-to-end test, since login itself is still
+  blocked on backend registration).
 
 ## Project structure
 

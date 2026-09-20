@@ -38,10 +38,14 @@ export function useUploadDocument() {
     },
 
     onError: (_error, _input, context) => {
-      // Roll back: the optimistic entry never happened.
-      if (context) {
-        queryClient.setQueryData<RecentUpload[]>(RECENT_UPLOADS_KEY, context.previous)
-      }
+      // Roll back the optimistic assumption that the document was saved, but keep
+      // the entry visible marked as failed rather than silently deleting it — the
+      // user should be able to see *that* an upload attempt failed, not just get a
+      // toast that's gone in a few seconds.
+      if (!context) return
+      queryClient.setQueryData<RecentUpload[]>(RECENT_UPLOADS_KEY, (current = context.previous) =>
+        current.map((entry) => (entry.clientId === context.clientId ? { ...entry, status: 'error' } : entry)),
+      )
     },
 
     onSuccess: (_data, _input, context) => {
@@ -53,6 +57,9 @@ export function useUploadDocument() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['searchDocuments'] })
+      // A successful upload may have introduced a brand-new tag; without this, the
+      // 60s-stale tag autocomplete (useDocumentTags) wouldn't show it right away.
+      queryClient.invalidateQueries({ queryKey: ['documentTags'] })
     },
   })
 }

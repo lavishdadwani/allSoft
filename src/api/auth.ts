@@ -3,6 +3,7 @@ import {
   extractToken,
   generateOtpRequestSchema,
   getAuthErrorMessage,
+  isSuccessStatus,
   validateOtpRequestSchema,
 } from '@/types/auth'
 
@@ -12,7 +13,7 @@ export async function generateOtp(mobileNumber: string): Promise<void> {
   const payload = generateOtpRequestSchema.parse({ mobile_number: mobileNumber })
   const { data } = await apiClient.post('/generateOTP', payload)
   const status = (data as { status?: unknown } | undefined)?.status
-  if (status !== true) {
+  if (!isSuccessStatus(status)) {
     throw new Error(getAuthErrorMessage(data, 'Failed to send OTP. Please try again.'))
   }
 }
