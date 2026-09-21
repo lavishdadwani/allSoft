@@ -23,11 +23,7 @@ describe('SearchForm', () => {
     )
 
     await user.selectOptions(screen.getByLabelText(/category/i), 'Personal')
-
-    // The bug: a naive implementation fires two onChange calls in the same handler
-    // (majorHead, then minorHead) that both read the same stale `filters` snapshot,
-    // so the final call ends up as {..filters, minorHead: ''} with the majorHead
-    // change silently discarded.
+    
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ majorHead: 'Personal', minorHead: '' }),
     )

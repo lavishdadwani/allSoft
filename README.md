@@ -151,65 +151,6 @@ routes (`/login`, `/admin/create-user`, `/`) don't 404 on a hard refresh.
   `unauthorizedCount`; `ResultsList` treats a nonzero count as the same
   session-expired signal.
 
-## Confirmed live backend behavior
-
-The Postman collection documents request shapes but not response shapes. Every
-endpoint has now been probed directly against the live backend with a real
-authenticated token (not just guessed from the request examples):
-
-- **Every endpoint returns HTTP 200 even on business-logic failure.** The envelope is
-  consistently `{status: boolean, data?: string, message?: string}` — e.g.
-  `generateOTP` for an unregistered number: `{"status": false, "data": "This Mobile
-  Number is not yet Registered."}`; `saveDocumentEntry` for a missing file:
-  `{"status": false, "message": "Invalid File."}`. axios never throws on these, so
-  `status` has to be checked explicitly on every call. This is centralized in
-  `src/lib/apiEnvelope.ts` (`isSuccessStatus`, `assertEnvelopeSuccess`,
-  `getEnvelopeErrorMessage`) and used by `src/api/auth.ts` and `src/api/documents.ts`.
-  This caught a real bug during development: `uploadDocument` originally didn't check
-  `status` at all, so a failed upload (e.g. an invalid file) would have been reported
-  to the user as a success.
-- **`documentTags` returns `{id, label}` objects**, e.g. `{"data": [{"id":
-  "Assignment", "label": "Assignment"}], "status": true}` — a different shape from the
-  `{tag_name}` used for tags everywhere else (`saveDocumentEntry`,
-  `searchDocumentEntry`). `tagSuggestionSchema` (`src/types/document.ts`) normalizes
-  `{id, label}` / `{tag_name}` / a bare string down to a plain tag name.
-- **`searchDocumentEntry`'s success shape is confirmed**:
-  `{"status": true, "data": [...], "recordsTotal": N, "recordsFiltered": N}`, and each
-  row looks like:
-  ```json
-  {
-    "document_id": 25, "major_head": "Professional", "minor_head": "IT",
-    "file_url": "https://allsoft-consulting.s3.ap-south-1.amazonaws.com/fileUploads/...?X-Amz-Signature=...",
-    "document_date": "2024-02-01T00:00:00", "document_remarks": "test",
-    "upload_time": "2024-02-26T16:14:33", "uploaded_by": "Sagar"
-  }
-  ```
-  Notably, **no row in 322+ real documents ever included a `tags` field** — tags can be
-  used to *filter* a search, but don't come back on each result, so there's currently
-  no way for the UI to display which tags a document has after the fact. This is a
-  backend/API limitation, not a frontend gap; `normalizeDocumentEntry` handles the
-  missing field gracefully (empty tag list) rather than crashing.
-- **`file_url` is a pre-signed AWS S3 URL, and that S3 bucket has no CORS
-  configuration at all** (confirmed directly: an S3 preflight probe returns
-  `CORSResponse: CORS is not enabled for this bucket`). This mattered a lot:
-  - A plain `<img src>` / `<iframe src>` works fine — that's just a resource load, no
-    CORS needed. **`PreviewModal` relies on this** and does *not* fetch the file as a
-    blob (an earlier version did, based on an incorrect assumption that the file
-    endpoint needed our app's auth header — it doesn't; the pre-signed URL
-    authenticates itself).
-  - Any `fetch()`/XHR that tries to **read** the response (to force a specific
-    filename on download, or to bundle bytes into a ZIP) *is* blocked by the browser,
-    auth header or not. `downloadFile` (`src/lib/download.ts`) tries a blob fetch
-    first and falls back to `window.open(url, '_blank')` if that fails, so the user
-    still has a path to save the file. The ZIP worker now surfaces a clear error
-    (`"None of the selected files could be bundled…"`) instead of silently producing
-    a broken/empty archive when every file in a batch is CORS-blocked, and reports a
-    skip count when only some are.
-  - `apiClient`'s auth-token interceptor was originally unconditional, which meant it
-    attached our app's session token to every request through it — including
-    `apiClient.get(fileUrl)` for downloads, leaking the token to a third-party AWS
-    domain. Fixed with `isSameOriginAsApi()` (`src/api/client.ts`): the token is only
-    attached to requests actually going to our own API origin.
 
 ## Project structure
 

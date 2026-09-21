@@ -55,11 +55,6 @@ export function UploadForm() {
     clearSuggestions()
   }
 
-  // Bonus 7.2 (mock AI auto-tagging / OCR simulation): re-run whenever the file
-  // or category context changes, so the suggestions stay relevant. Remarks are
-  // intentionally left out of the dependency list — re-running on every keystroke
-  // would spin up a new worker constantly; the request still reads the latest
-  // remarks value via closure when it does fire.
   useEffect(() => {
     if (!file) {
       clearSuggestions()
