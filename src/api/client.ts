@@ -9,9 +9,27 @@ export const apiClient = axios.create({
   timeout: 20000,
 })
 
+const API_ORIGIN = new URL(API_BASE_URL).origin
+
+export function isSameOriginAsApi(url: string | undefined): boolean {
+  if (!url) return true // relative path with no host — resolves against baseURL
+  if (!/^https?:\/\//i.test(url)) return true // relative path
+  try {
+    return new URL(url).origin === API_ORIGIN
+  } catch {
+    return false
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
   const token = getToken()
-  if (token) {
+  // Confirmed live: searchDocumentEntry's file_url is a pre-signed AWS S3 URL, a
+  // different origin from the API and already authenticated via its own query-string
+  // signature. Attaching our app's token header to that request would leak the
+  // token to a third-party domain for no reason, and risks the browser blocking the
+  // request over CORS if S3's bucket policy doesn't allow that header. Only attach
+  // it for requests actually going to our own API.
+  if (token && isSameOriginAsApi(config.url)) {
     // The backend expects the token in a custom "token" header (see Postman collection),
     // not the standard Authorization scheme.
     config.headers[AUTH_HEADER_NAME] = token

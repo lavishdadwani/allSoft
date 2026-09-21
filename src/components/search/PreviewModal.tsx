@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { fetchFileBlob } from '@/lib/download'
 import type { DocumentEntry } from '@/types/document'
 
 interface PreviewModalProps {
@@ -16,9 +15,7 @@ function getFileKind(fileName: string): 'pdf' | 'image' | 'other' {
 
 export function PreviewModal({ document: doc, onClose }: PreviewModalProps) {
   const kind = getFileKind(doc.fileName)
-  const [blobUrl, setBlobUrl] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(kind !== 'other')
+  const [failedToLoad, setFailedToLoad] = useState(false)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -28,33 +25,7 @@ export function PreviewModal({ document: doc, onClose }: PreviewModalProps) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onClose])
 
-  useEffect(() => {
-    if (kind === 'other' || !doc.fileUrl) return
-
-    let objectUrl: string | null = null
-    let cancelled = false
-
-    // The file endpoint requires the same auth token header as every other API
-    // call (see src/api/client.ts) — a plain <img>/<iframe src> can't attach a
-    // custom header, so we fetch it as an authenticated blob instead.
-    fetchFileBlob(doc.fileUrl)
-      .then((blob) => {
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
-        setBlobUrl(objectUrl)
-      })
-      .catch(() => {
-        if (!cancelled) setError("Couldn't load this file for preview.")
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [doc.fileUrl, kind])
+  const unsupported = kind === 'other' || !doc.fileUrl || failedToLoad
 
   return (
     <div
@@ -77,19 +48,37 @@ export function PreviewModal({ document: doc, onClose }: PreviewModalProps) {
         </div>
 
         <div className="flex-1 overflow-auto bg-slate-50 flex items-center justify-center p-4">
-          {isLoading && <p className="text-sm text-slate-500">Loading preview…</p>}
-
-          {!isLoading && error && <p className="text-sm text-red-600 text-center max-w-sm">{error}</p>}
-
-          {!isLoading && !error && kind === 'pdf' && blobUrl && (
-            <iframe src={blobUrl} title={doc.fileName} className="w-full h-[65vh] rounded-lg bg-white" />
+          {/*
+            The file URL (confirmed live) is a pre-signed, self-authenticating
+            AWS S3 link on a different origin from our API, and that bucket has
+            no CORS configuration at all. A plain <img>/<iframe src> works fine
+            (browsers don't need CORS just to render a cross-origin resource);
+            fetching it as a blob to read the bytes in JS would be blocked by
+            the browser regardless of any auth header, so we deliberately don't
+            do that here.
+          */}
+          {!unsupported && kind === 'pdf' && (
+            <iframe
+              src={doc.fileUrl}
+              title={doc.fileName}
+              className="w-full h-[65vh] rounded-lg bg-white"
+              onError={() => setFailedToLoad(true)}
+            />
           )}
-          {!isLoading && !error && kind === 'image' && blobUrl && (
-            <img src={blobUrl} alt={doc.fileName} className="max-h-[65vh] object-contain rounded-lg" />
+          {!unsupported && kind === 'image' && (
+            <img
+              src={doc.fileUrl}
+              alt={doc.fileName}
+              className="max-h-[65vh] object-contain rounded-lg"
+              onError={() => setFailedToLoad(true)}
+            />
           )}
-          {(kind === 'other' || !doc.fileUrl) && !isLoading && !error && (
+          {unsupported && (
             <p className="text-sm text-slate-500 text-center max-w-sm">
-              Preview isn't supported for this file type. Use the download button to view it locally.
+              {failedToLoad
+                ? "This file couldn't be loaded for preview."
+                : "Preview isn't supported for this file type."}{' '}
+              Use the download button to view it locally.
             </p>
           )}
         </div>

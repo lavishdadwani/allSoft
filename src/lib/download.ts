@@ -16,7 +16,20 @@ export function triggerBrowserDownload(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(blobUrl)
 }
 
-export async function downloadFile(url: string, fileName: string): Promise<void> {
-  const blob = await fetchFileBlob(url)
-  triggerBrowserDownload(blob, fileName)
+export type DownloadOutcome = 'saved' | 'opened-new-tab'
+
+export async function downloadFile(url: string, fileName: string): Promise<DownloadOutcome> {
+  try {
+    const blob = await fetchFileBlob(url)
+    triggerBrowserDownload(blob, fileName)
+    return 'saved'
+  } catch {
+    // Most likely cause (confirmed against the real backend): the file lives on
+    // an S3 bucket with no CORS configuration, so the browser blocks JS from
+    // reading the response body even though the URL itself loads fine as a plain
+    // resource. Open it in a new tab so the user has a path to save it manually
+    // instead of the download silently failing.
+    window.open(url, '_blank', 'noopener')
+    return 'opened-new-tab'
+  }
 }

@@ -18,7 +18,7 @@ export interface ZipWorkerRequest {
 
 export type ZipWorkerResponse =
   | { type: 'progress'; completed: number; total: number }
-  | { type: 'done'; buffer: ArrayBuffer; unauthorizedCount: number }
+  | { type: 'done'; buffer: ArrayBuffer; unauthorizedCount: number; skippedCount: number }
   | { type: 'error'; message: string }
 
 // Cast away the DOM `self` typing so we don't have to reconcile the DOM and
@@ -47,25 +47,29 @@ function sameOrigin(url: string, origin: string | undefined): boolean {
   }
 }
 
+type FetchOutcome = 'ok' | 'unauthorized' | 'failed'
+
 async function fetchOne(
   file: ZipWorkerFile,
   token: string | null | undefined,
   apiOrigin: string | undefined,
   zippable: Zippable,
-): Promise<{ unauthorized: boolean }> {
+): Promise<FetchOutcome> {
   try {
     const headers =
       token && sameOrigin(file.url, apiOrigin) ? { [AUTH_HEADER_NAME]: token } : undefined
     const response = await fetch(file.url, headers ? { headers } : undefined)
     if (!response.ok) {
-      return { unauthorized: response.status === 401 }
+      return response.status === 401 ? 'unauthorized' : 'failed'
     }
     const buffer = new Uint8Array(await response.arrayBuffer())
     zippable[dedupeName(zippable, file.name)] = buffer
-    return { unauthorized: false }
+    return 'ok'
   } catch {
-    // Network failure, CORS rejection, etc. — skip this file, keep the rest going.
-    return { unauthorized: false }
+    // Network failure, or the browser blocking a cross-origin read because the
+    // host has no CORS configuration (confirmed against the real file storage
+    // used by this app) — either way, skip this file and keep the rest going.
+    return 'failed'
   }
 }
 
@@ -74,22 +78,36 @@ ctx.onmessage = async (event: MessageEvent<ZipWorkerRequest>) => {
   const zippable: Zippable = {}
   let completed = 0
   let unauthorizedCount = 0
+  let skippedCount = 0
 
   for (let i = 0; i < files.length; i += CONCURRENCY) {
     const batch = files.slice(i, i + CONCURRENCY)
     const results = await Promise.all(batch.map((file) => fetchOne(file, token, apiOrigin, zippable)))
-    for (const result of results) {
+    for (const outcome of results) {
       completed += 1
-      if (result.unauthorized) unauthorizedCount += 1
+      if (outcome === 'unauthorized') unauthorizedCount += 1
+      if (outcome === 'failed') skippedCount += 1
     }
     const progress: ZipWorkerResponse = { type: 'progress', completed, total: files.length }
     ctx.postMessage(progress)
   }
 
+  if (Object.keys(zippable).length === 0) {
+    const message: ZipWorkerResponse = {
+      type: 'error',
+      message:
+        unauthorizedCount > 0
+          ? 'Your session has expired.'
+          : "None of the selected files could be bundled — they may be hosted somewhere that blocks browser downloads. Try downloading them individually instead.",
+    }
+    ctx.postMessage(message)
+    return
+  }
+
   try {
     const zipped = zipSync(zippable, { level: 6 })
     const buffer = zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength)
-    const done: ZipWorkerResponse = { type: 'done', buffer, unauthorizedCount }
+    const done: ZipWorkerResponse = { type: 'done', buffer, unauthorizedCount, skippedCount }
     ctx.postMessage(done, [buffer])
   } catch (err) {
     const message: ZipWorkerResponse = {

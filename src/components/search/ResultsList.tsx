@@ -33,6 +33,20 @@ export function ResultsList({ documents }: ResultsListProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zip.unauthorizedCount])
 
+  useEffect(() => {
+    if (zip.error) showToast(zip.error, 'error')
+  }, [zip.error, showToast])
+
+  useEffect(() => {
+    if (zip.skippedCount > 0 && zip.unauthorizedCount === 0) {
+      showToast(
+        `${zip.skippedCount} file(s) couldn't be bundled and were skipped — the rest downloaded fine.`,
+        'info',
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zip.skippedCount])
+
   const virtualizer = useVirtualizer({
     count: documents.length,
     getScrollElement: () => parentRef.current,
@@ -62,7 +76,10 @@ export function ResultsList({ documents }: ResultsListProps) {
     }
     setDownloadingId(doc.id)
     try {
-      await downloadFile(doc.fileUrl, doc.fileName)
+      const outcome = await downloadFile(doc.fileUrl, doc.fileName)
+      if (outcome === 'opened-new-tab') {
+        showToast(`Opened ${doc.fileName} in a new tab — save it from there.`, 'info')
+      }
     } catch {
       showToast(`Failed to download ${doc.fileName}.`, 'error')
     } finally {

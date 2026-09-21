@@ -10,6 +10,7 @@ export interface ZipDownloadState {
   total: number
   error: string | null
   unauthorizedCount: number
+  skippedCount: number
 }
 
 export function useZipDownload() {
@@ -20,6 +21,7 @@ export function useZipDownload() {
     total: 0,
     error: null,
     unauthorizedCount: 0,
+    skippedCount: 0,
   })
 
   // If the component unmounts mid-zip (e.g. the user navigates away), stop the
@@ -36,7 +38,14 @@ export function useZipDownload() {
     const worker = new Worker(new URL('../workers/zipWorker.ts', import.meta.url), { type: 'module' })
     workerRef.current = worker
 
-    setState({ isZipping: true, completed: 0, total: files.length, error: null, unauthorizedCount: 0 })
+    setState({
+      isZipping: true,
+      completed: 0,
+      total: files.length,
+      error: null,
+      unauthorizedCount: 0,
+      skippedCount: 0,
+    })
 
     worker.onmessage = (event: MessageEvent<ZipWorkerResponse>) => {
       const msg = event.data
@@ -44,7 +53,12 @@ export function useZipDownload() {
         setState((prev) => ({ ...prev, completed: msg.completed, total: msg.total }))
       } else if (msg.type === 'done') {
         triggerBrowserDownload(new Blob([msg.buffer], { type: 'application/zip' }), zipFileName)
-        setState((prev) => ({ ...prev, isZipping: false, unauthorizedCount: msg.unauthorizedCount }))
+        setState((prev) => ({
+          ...prev,
+          isZipping: false,
+          unauthorizedCount: msg.unauthorizedCount,
+          skippedCount: msg.skippedCount,
+        }))
         worker.terminate()
       } else if (msg.type === 'error') {
         setState((prev) => ({ ...prev, isZipping: false, error: msg.message }))
