@@ -47,12 +47,17 @@ export function SearchForm({ filters, onChange, onSubmit, onReset, isSearching }
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+          <label htmlFor="search-major-head" className="block text-sm font-medium text-slate-700 mb-1">
+            Category
+          </label>
           <select
+            id="search-major-head"
             value={filters.majorHead}
             onChange={(e) => {
-              update('majorHead', e.target.value as MajorHead)
-              update('minorHead', '')
+              // Two separate update() calls here would both read the same stale
+              // `filters` closure (this isn't a functional setState update), so the
+              // second call would silently discard the first — combine into one.
+              onChange({ ...filters, majorHead: e.target.value as MajorHead, minorHead: '' })
             }}
             className={selectClass}
           >
@@ -66,10 +71,11 @@ export function SearchForm({ filters, onChange, onSubmit, onReset, isSearching }
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="search-minor-head" className="block text-sm font-medium text-slate-700 mb-1">
             {filters.majorHead === 'Professional' ? 'Department' : 'Name'}
           </label>
           <select
+            id="search-minor-head"
             value={filters.minorHead}
             onChange={(e) => update('minorHead', e.target.value)}
             disabled={!filters.majorHead}
@@ -85,8 +91,11 @@ export function SearchForm({ filters, onChange, onSubmit, onReset, isSearching }
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">From date</label>
+          <label htmlFor="search-from-date" className="block text-sm font-medium text-slate-700 mb-1">
+            From date
+          </label>
           <input
+            id="search-from-date"
             type="date"
             value={filters.fromDate}
             onChange={(e) => update('fromDate', e.target.value)}
@@ -95,8 +104,11 @@ export function SearchForm({ filters, onChange, onSubmit, onReset, isSearching }
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">To date</label>
+          <label htmlFor="search-to-date" className="block text-sm font-medium text-slate-700 mb-1">
+            To date
+          </label>
           <input
+            id="search-to-date"
             type="date"
             value={filters.toDate}
             onChange={(e) => update('toDate', e.target.value)}
@@ -107,12 +119,22 @@ export function SearchForm({ filters, onChange, onSubmit, onReset, isSearching }
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Tags</label>
-          <TagInput value={filters.tags} onChange={(tags) => update('tags', tags)} placeholder="Filter by tag" />
+          <label htmlFor="search-tags" className="block text-sm font-medium text-slate-700 mb-1">
+            Tags
+          </label>
+          <TagInput
+            id="search-tags"
+            value={filters.tags}
+            onChange={(tags) => update('tags', tags)}
+            placeholder="Filter by tag"
+          />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Free text search</label>
+          <label htmlFor="search-text" className="block text-sm font-medium text-slate-700 mb-1">
+            Free text search
+          </label>
           <input
+            id="search-text"
             type="text"
             value={filters.searchText}
             onChange={(e) => update('searchText', e.target.value)}

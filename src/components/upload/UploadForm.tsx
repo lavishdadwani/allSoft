@@ -104,8 +104,11 @@ export function UploadForm() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Document date</label>
+            <label htmlFor="upload-document-date" className="block text-sm font-medium text-slate-700 mb-1">
+              Document date
+            </label>
             <input
+              id="upload-document-date"
               type="date"
               value={form.documentDate}
               onChange={(e) => updateField('documentDate', e.target.value)}
@@ -115,8 +118,11 @@ export function UploadForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+            <label htmlFor="upload-major-head" className="block text-sm font-medium text-slate-700 mb-1">
+              Category
+            </label>
             <select
+              id="upload-major-head"
               value={form.majorHead}
               onChange={(e) => {
                 updateField('majorHead', e.target.value as MajorHead)
@@ -135,10 +141,11 @@ export function UploadForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="upload-minor-head" className="block text-sm font-medium text-slate-700 mb-1">
               {form.majorHead === 'Professional' ? 'Department' : 'Name'}
             </label>
             <select
+              id="upload-minor-head"
               value={form.minorHead}
               onChange={(e) => updateField('minorHead', e.target.value)}
               disabled={!form.majorHead}
@@ -157,8 +164,11 @@ export function UploadForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">File (PDF or image)</label>
+            <label htmlFor="upload-file" className="block text-sm font-medium text-slate-700 mb-1">
+              File (PDF or image)
+            </label>
             <input
+              id="upload-file"
               type="file"
               accept={ACCEPTED_FILE_TYPES.join(',')}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -169,13 +179,18 @@ export function UploadForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Tags</label>
-          <TagInput value={form.tags} onChange={(tags) => updateField('tags', tags)} />
+          <label htmlFor="upload-tags" className="block text-sm font-medium text-slate-700 mb-1">
+            Tags
+          </label>
+          <TagInput id="upload-tags" value={form.tags} onChange={(tags) => updateField('tags', tags)} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Remarks</label>
+          <label htmlFor="upload-remarks" className="block text-sm font-medium text-slate-700 mb-1">
+            Remarks
+          </label>
           <textarea
+            id="upload-remarks"
             value={form.remarks}
             onChange={(e) => updateField('remarks', e.target.value)}
             rows={3}

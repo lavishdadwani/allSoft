@@ -5,9 +5,10 @@ interface TagInputProps {
   value: string[]
   onChange: (tags: string[]) => void
   placeholder?: string
+  id?: string
 }
 
-export function TagInput({ value, onChange, placeholder = 'Add a tag and press Enter' }: TagInputProps) {
+export function TagInput({ value, onChange, placeholder = 'Add a tag and press Enter', id }: TagInputProps) {
   const [inputValue, setInputValue] = useState('')
   const [debouncedTerm, setDebouncedTerm] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -72,6 +73,7 @@ export function TagInput({ value, onChange, placeholder = 'Add a tag and press E
           </span>
         ))}
         <input
+          id={id}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
