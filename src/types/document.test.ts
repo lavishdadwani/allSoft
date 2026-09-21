@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { minorHeadOptions, searchRequestSchema, uploadFormSchema } from './document'
+import { minorHeadOptions, searchRequestSchema, tagSuggestionSchema, uploadFormSchema } from './document'
 
 describe('minorHeadOptions', () => {
   it('returns names for Personal', () => {
@@ -56,5 +56,24 @@ describe('searchRequestSchema', () => {
     expect(result.start).toBe(0)
     expect(result.length).toBe(10)
     expect(result.search.value).toBe('')
+  })
+})
+
+describe('tagSuggestionSchema', () => {
+  it('extracts the name from the real documentTags shape ({id, label})', () => {
+    // Confirmed live: {"data": [{"id": "Assignment", "label": "Assignment"}], "status": true}
+    expect(tagSuggestionSchema.parse({ id: 'Assignment', label: 'Assignment' })).toBe('Assignment')
+  })
+
+  it('still accepts a { tag_name } object', () => {
+    expect(tagSuggestionSchema.parse({ tag_name: 'RMC' })).toBe('RMC')
+  })
+
+  it('still accepts a bare string', () => {
+    expect(tagSuggestionSchema.parse('work_order')).toBe('work_order')
+  })
+
+  it('rejects a shape with none of the recognized fields', () => {
+    expect(tagSuggestionSchema.safeParse({ foo: 'bar' }).success).toBe(false)
   })
 })

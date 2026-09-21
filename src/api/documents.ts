@@ -3,7 +3,7 @@ import { normalizeDocumentEntry } from '@/lib/normalize'
 import {
   searchRequestSchema,
   searchResponseSchema,
-  tagSchema,
+  tagSuggestionSchema,
   uploadFormSchema,
   type DocumentEntry,
   type SearchRequest,
@@ -53,7 +53,7 @@ export async function searchDocuments(filters: Partial<SearchRequest>): Promise<
 
 const tagListResponseSchema = z
   .object({
-    data: z.array(z.union([tagSchema, z.string()])).default([]),
+    data: z.array(tagSuggestionSchema).default([]),
   })
   .passthrough()
 
@@ -68,5 +68,5 @@ export async function fetchDocumentTags(term: string): Promise<Tag[]> {
     return []
   }
 
-  return parsed.data.data.map((t) => (typeof t === 'string' ? { tag_name: t } : t))
+  return parsed.data.data.map((tag_name) => ({ tag_name }))
 }

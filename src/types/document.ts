@@ -17,6 +17,19 @@ export const tagSchema = z.object({
 })
 export type Tag = z.infer<typeof tagSchema>
 
+// documentTags suggestions come back shaped like { id, label } (confirmed live:
+// {"data": [{"id": "Assignment", "label": "Assignment"}], "status": true}) — a
+// different shape than the { tag_name } the rest of the API (saveDocumentEntry,
+// searchDocumentEntry) uses for tags. This normalizes any of the shapes we might
+// plausibly see down to a plain tag-name string.
+export const tagSuggestionSchema = z.union([
+  z.object({ tag_name: z.string().min(1) }).transform((t) => t.tag_name),
+  z.object({ label: z.string().min(1), id: z.union([z.string(), z.number()]).optional() }).transform(
+    (t) => t.label,
+  ),
+  z.string().min(1),
+])
+
 // Validates the upload form before it is turned into the multipart "data" payload.
 export const uploadFormSchema = z.object({
   major_head: z.enum(MAJOR_HEADS, { message: 'Select a category' }),
