@@ -142,25 +142,32 @@ live API directly (`curl`) to confirm what I could without a valid session:
   failure, with a body like `{"status": false, "data": "This Mobile Number is not yet
   Registered."}` or `{"status": false, "message": "Error : Invalid OTP"}`. The code
   handles this (`src/types/auth.ts`, `src/api/auth.ts`) — status must be checked
-  explicitly since axios won't throw on its own.
-- **Not yet confirmed live**: every mobile number tried during development (including
-  the candidate's own) came back "not yet Registered" — this backend enforces a
-  registration allowlist that isn't part of the given API collection. **Before final
-  submission, get a number registered with AllSoft (nk@allsoft.co) and run the full
-  login → upload → search → download flow once** to confirm the success-response
-  shapes for `validateOTP` (assumed: `{"status": true, "data": "<token>"}`),
-  `saveDocumentEntry`, `searchDocumentEntry`, and `documentTags` match what
-  `src/types/document.ts` / `src/lib/normalize.ts` expect. The normalization layer is
+  explicitly since axios won't throw on its own. A number has since been registered
+  with AllSoft and the full OTP login flow works end-to-end.
+- **Confirmed**: `documentTags` returns tag suggestions shaped as
+  `{"data": [{"id": "Assignment", "label": "Assignment"}], "status": true}` — notably
+  `{id, label}`, **not** the `{tag_name}` shape `saveDocumentEntry` /
+  `searchDocumentEntry` use for tags elsewhere. `tagSuggestionSchema`
+  (`src/types/document.ts`) normalizes `{id, label}`, `{tag_name}`, or a bare string
+  down to a plain tag-name string; `fetchDocumentTags` (`src/api/documents.ts`) is the
+  only place this distinction matters; outgoing tag payloads are still `{tag_name}`
+  only. (This mismatch is exactly the kind of drift the defensive response parsing
+  was built to catch — it silently fell back to an empty list rather than crashing,
+  which is how it was first noticed: tags weren't showing up with no visible error.)
+- **Still to verify**: the exact success-response shapes for `saveDocumentEntry` and
+  `searchDocumentEntry` — run a real upload and search once login is confirmed
+  working, and check the browser console for any "response did not match expected
+  shape" warnings from `src/api/documents.ts`. The normalization layer is
   intentionally defensive (falls back to empty results and logs a console warning
-  rather than crashing) if the real shape differs.
+  rather than crashing) if the real shape differs from what's assumed.
 - File preview/download assumes each search result includes a directly fetchable file
   URL (checked in order: `file_url`, `path`, `document_path`). If the real API returns
   a different key, update `normalizeDocumentEntry` in `src/lib/normalize.ts`.
 - Preview, single-file download, and ZIP download all authenticate consistently now
   (see "Auth consistency across three code paths" above) — this was a real gap in an
-  earlier version of this app and is now fixed and covered by manual verification of
-  the code paths (not yet a live end-to-end test, since login itself is still
-  blocked on backend registration).
+  earlier version of this app, fixed and verified by code inspection. Still worth a
+  live pass now that login works, to confirm the file endpoint actually behaves the
+  way the fix assumes.
 
 ## Project structure
 
