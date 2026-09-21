@@ -9,7 +9,7 @@ import { mobileNumberSchema, otpSchema } from '@/types/auth'
 type Step = 'mobile' | 'otp'
 
 export function LoginPage() {
-  const { requestOtp, login, devLogin } = useAuth()
+  const { requestOtp, login } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
 
@@ -17,7 +17,6 @@ export function LoginPage() {
   const [mobileNumber, setMobileNumber] = useState('')
   const [otp, setOtp] = useState('')
   const [fieldError, setFieldError] = useState<string | null>(null)
-  const [devToken, setDevToken] = useState('')
 
   const otpMutation = useMutation({
     mutationFn: () => requestOtp(mobileNumber),
@@ -132,54 +131,6 @@ export function LoginPage() {
               Use a different mobile number
             </button>
           </form>
-        )}
-
-        {import.meta.env.DEV && (
-          <div className="mt-6 border-t border-dashed border-amber-300 pt-4 space-y-3">
-            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
-              Dev only — stripped from production builds
-            </p>
-            <p className="text-xs text-slate-500">
-              The backend's OTP registration allowlist is blocking real logins right now.
-              Use one of these to bypass the OTP step and exercise the rest of the app.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => {
-                const mobile = mobileNumber || '9999999999'
-                devLogin(mobile, 'dev-fake-token')
-                showToast('Dev session started (fake token — real API calls will 401).', 'info')
-                navigate('/', { replace: true })
-              }}
-              className="w-full bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-medium py-2 rounded-lg transition-colors"
-            >
-              Skip login with a fake token
-            </button>
-
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={devToken}
-                onChange={(e) => setDevToken(e.target.value)}
-                placeholder="Paste a real token (e.g. from Postman)"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-              />
-              <button
-                type="button"
-                disabled={!devToken.trim()}
-                onClick={() => {
-                  const mobile = mobileNumber || '9999999999'
-                  devLogin(mobile, devToken.trim())
-                  showToast('Dev session started with the provided token.', 'success')
-                  navigate('/', { replace: true })
-                }}
-                className="bg-slate-800 hover:bg-slate-900 disabled:opacity-40 text-white text-xs font-medium px-3 rounded-lg transition-colors"
-              >
-                Use token
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>

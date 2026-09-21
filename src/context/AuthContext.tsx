@@ -11,8 +11,6 @@ interface AuthContextValue {
   requestOtp: (mobileNumber: string) => Promise<void>
   login: (mobileNumber: string, otp: string) => Promise<void>
   logout: () => void
-  /** Dev-only: sets a session directly, bypassing generateOTP/validateOTP entirely. */
-  devLogin: (mobileNumber: string, token: string) => void
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -32,13 +30,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(newToken, derivedUserId, mobile)
     setToken(newToken)
     setUserId(derivedUserId)
-    setMobileNumber(mobile)
-  }, [])
-
-  const devLogin = useCallback((mobile: string, token: string) => {
-    setSession(token, mobile, mobile)
-    setToken(token)
-    setUserId(mobile)
     setMobileNumber(mobile)
   }, [])
 
@@ -67,9 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requestOtp,
       login,
       logout,
-      devLogin,
     }),
-    [token, userId, mobileNumber, requestOtp, login, logout, devLogin],
+    [token, userId, mobileNumber, requestOtp, login, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
