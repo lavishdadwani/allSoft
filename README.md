@@ -115,59 +115,82 @@ scope above.
   expose an endpoint for these.
 - **`user_id`**: `validateOTP` only returns a token, no user profile — so the app
   uses the mobile number itself as `user_id` for `saveDocumentEntry` /
-  `searchDocumentEntry`. Worth confirming this is what the backend actually expects
-  once a real login can be tested end-to-end.
-- **Auth consistency across three code paths**: the backend expects a custom `token`
-  header (not `Authorization: Bearer`) on every authenticated request. This is
-  centralized as `AUTH_HEADER_NAME` (`src/lib/authHeader.ts`) and used by (1)
-  `apiClient`'s axios interceptor for normal requests/downloads, (2) the preview
-  modal, which fetches the file as an authenticated blob rather than setting
-  `<img>`/`<iframe> src` directly (browsers won't let you attach custom headers to
-  those), and (3) the ZIP web worker's own `fetch` calls, which only attach the
-  token when the file URL's origin matches the API's origin (so an unrelated
-  CDN/pre-signed URL doesn't get an unexpected header). A 401 from `apiClient`
-  clears the session and dispatches a `dms:session-expired` window event that
-  `AuthContext` listens for, so the UI actually drops back to the login screen
-  instead of silently continuing to look "logged in" while every request fails.
-  The ZIP worker can't go through `apiClient`, so it reports back an
+  `searchDocumentEntry`. Confirmed working live (search-by-`uploaded_by` correctly
+  finds documents uploaded through this app using the logged-in mobile number).
+- **Auth header scoping**: the backend expects a custom `token` header (not
+  `Authorization: Bearer`) on every authenticated request to *our own API* —
+  centralized as `AUTH_HEADER_NAME` (`src/lib/authHeader.ts`). This must **not** be
+  attached to requests going anywhere else: `apiClient`'s interceptor
+  (`src/api/client.ts`) only adds it when `isSameOriginAsApi()` says the request
+  target is our API's own origin, and the ZIP worker's `fetch` calls apply the same
+  same-origin check before adding it (files are pre-signed S3 URLs on a different
+  origin — see "Confirmed live backend behavior" below for why this matters). A 401
+  from `apiClient` clears the session and dispatches a `dms:session-expired` window
+  event that `AuthContext` listens for, so the UI actually drops back to the login
+  screen instead of silently continuing to look "logged in" while every request
+  fails. The ZIP worker can't go through `apiClient`, so it reports back an
   `unauthorizedCount`; `ResultsList` treats a nonzero count as the same
   session-expired signal.
 
-## Known gaps / things to verify against the live backend
+## Confirmed live backend behavior
 
-The Postman collection documents request shapes but not response shapes. I probed the
-live API directly (`curl`) to confirm what I could without a valid session:
+The Postman collection documents request shapes but not response shapes. Every
+endpoint has now been probed directly against the live backend with a real
+authenticated token (not just guessed from the request examples):
 
-- **Confirmed**: `generateOTP` / `validateOTP` return HTTP 200 even on business-logic
-  failure, with a body like `{"status": false, "data": "This Mobile Number is not yet
-  Registered."}` or `{"status": false, "message": "Error : Invalid OTP"}`. The code
-  handles this (`src/types/auth.ts`, `src/api/auth.ts`) — status must be checked
-  explicitly since axios won't throw on its own. A number has since been registered
-  with AllSoft and the full OTP login flow works end-to-end.
-- **Confirmed**: `documentTags` returns tag suggestions shaped as
-  `{"data": [{"id": "Assignment", "label": "Assignment"}], "status": true}` — notably
-  `{id, label}`, **not** the `{tag_name}` shape `saveDocumentEntry` /
-  `searchDocumentEntry` use for tags elsewhere. `tagSuggestionSchema`
-  (`src/types/document.ts`) normalizes `{id, label}`, `{tag_name}`, or a bare string
-  down to a plain tag-name string; `fetchDocumentTags` (`src/api/documents.ts`) is the
-  only place this distinction matters; outgoing tag payloads are still `{tag_name}`
-  only. (This mismatch is exactly the kind of drift the defensive response parsing
-  was built to catch — it silently fell back to an empty list rather than crashing,
-  which is how it was first noticed: tags weren't showing up with no visible error.)
-- **Still to verify**: the exact success-response shapes for `saveDocumentEntry` and
-  `searchDocumentEntry` — run a real upload and search once login is confirmed
-  working, and check the browser console for any "response did not match expected
-  shape" warnings from `src/api/documents.ts`. The normalization layer is
-  intentionally defensive (falls back to empty results and logs a console warning
-  rather than crashing) if the real shape differs from what's assumed.
-- File preview/download assumes each search result includes a directly fetchable file
-  URL (checked in order: `file_url`, `path`, `document_path`). If the real API returns
-  a different key, update `normalizeDocumentEntry` in `src/lib/normalize.ts`.
-- Preview, single-file download, and ZIP download all authenticate consistently now
-  (see "Auth consistency across three code paths" above) — this was a real gap in an
-  earlier version of this app, fixed and verified by code inspection. Still worth a
-  live pass now that login works, to confirm the file endpoint actually behaves the
-  way the fix assumes.
+- **Every endpoint returns HTTP 200 even on business-logic failure.** The envelope is
+  consistently `{status: boolean, data?: string, message?: string}` — e.g.
+  `generateOTP` for an unregistered number: `{"status": false, "data": "This Mobile
+  Number is not yet Registered."}`; `saveDocumentEntry` for a missing file:
+  `{"status": false, "message": "Invalid File."}`. axios never throws on these, so
+  `status` has to be checked explicitly on every call. This is centralized in
+  `src/lib/apiEnvelope.ts` (`isSuccessStatus`, `assertEnvelopeSuccess`,
+  `getEnvelopeErrorMessage`) and used by `src/api/auth.ts` and `src/api/documents.ts`.
+  This caught a real bug during development: `uploadDocument` originally didn't check
+  `status` at all, so a failed upload (e.g. an invalid file) would have been reported
+  to the user as a success.
+- **`documentTags` returns `{id, label}` objects**, e.g. `{"data": [{"id":
+  "Assignment", "label": "Assignment"}], "status": true}` — a different shape from the
+  `{tag_name}` used for tags everywhere else (`saveDocumentEntry`,
+  `searchDocumentEntry`). `tagSuggestionSchema` (`src/types/document.ts`) normalizes
+  `{id, label}` / `{tag_name}` / a bare string down to a plain tag name.
+- **`searchDocumentEntry`'s success shape is confirmed**:
+  `{"status": true, "data": [...], "recordsTotal": N, "recordsFiltered": N}`, and each
+  row looks like:
+  ```json
+  {
+    "document_id": 25, "major_head": "Professional", "minor_head": "IT",
+    "file_url": "https://allsoft-consulting.s3.ap-south-1.amazonaws.com/fileUploads/...?X-Amz-Signature=...",
+    "document_date": "2024-02-01T00:00:00", "document_remarks": "test",
+    "upload_time": "2024-02-26T16:14:33", "uploaded_by": "Sagar"
+  }
+  ```
+  Notably, **no row in 322+ real documents ever included a `tags` field** — tags can be
+  used to *filter* a search, but don't come back on each result, so there's currently
+  no way for the UI to display which tags a document has after the fact. This is a
+  backend/API limitation, not a frontend gap; `normalizeDocumentEntry` handles the
+  missing field gracefully (empty tag list) rather than crashing.
+- **`file_url` is a pre-signed AWS S3 URL, and that S3 bucket has no CORS
+  configuration at all** (confirmed directly: an S3 preflight probe returns
+  `CORSResponse: CORS is not enabled for this bucket`). This mattered a lot:
+  - A plain `<img src>` / `<iframe src>` works fine — that's just a resource load, no
+    CORS needed. **`PreviewModal` relies on this** and does *not* fetch the file as a
+    blob (an earlier version did, based on an incorrect assumption that the file
+    endpoint needed our app's auth header — it doesn't; the pre-signed URL
+    authenticates itself).
+  - Any `fetch()`/XHR that tries to **read** the response (to force a specific
+    filename on download, or to bundle bytes into a ZIP) *is* blocked by the browser,
+    auth header or not. `downloadFile` (`src/lib/download.ts`) tries a blob fetch
+    first and falls back to `window.open(url, '_blank')` if that fails, so the user
+    still has a path to save the file. The ZIP worker now surfaces a clear error
+    (`"None of the selected files could be bundled…"`) instead of silently producing
+    a broken/empty archive when every file in a batch is CORS-blocked, and reports a
+    skip count when only some are.
+  - `apiClient`'s auth-token interceptor was originally unconditional, which meant it
+    attached our app's session token to every request through it — including
+    `apiClient.get(fileUrl)` for downloads, leaking the token to a third-party AWS
+    domain. Fixed with `isSameOriginAsApi()` (`src/api/client.ts`): the token is only
+    attached to requests actually going to our own API origin.
 
 ## Project structure
 

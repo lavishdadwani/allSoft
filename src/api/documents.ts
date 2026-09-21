@@ -1,4 +1,5 @@
 import { apiClient } from '@/api/client'
+import { assertEnvelopeSuccess, getEnvelopeErrorMessage, isSuccessStatus } from '@/lib/apiEnvelope'
 import { normalizeDocumentEntry } from '@/lib/normalize'
 import {
   searchRequestSchema,
@@ -22,9 +23,12 @@ export async function uploadDocument({ file, meta }: UploadDocumentInput): Promi
   const formData = new FormData()
   formData.append('file', file)
   formData.append('data', JSON.stringify(validated))
-  await apiClient.post('/saveDocumentEntry', formData, {
+  const { data } = await apiClient.post('/saveDocumentEntry', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+  // Confirmed live: this returns HTTP 200 even on failure, e.g.
+  // {"status": false, "message": "Invalid File."} — axios won't throw on its own.
+  assertEnvelopeSuccess(data, 'Upload failed. Please try again.')
 }
 
 export interface SearchResult {
@@ -36,6 +40,16 @@ export interface SearchResult {
 export async function searchDocuments(filters: Partial<SearchRequest>): Promise<SearchResult> {
   const payload = searchRequestSchema.parse(filters)
   const { data } = await apiClient.post('/searchDocumentEntry', payload)
+
+  // Same envelope as every other endpoint here: HTTP 200 even on failure. Without
+  // this check, a real search error would render identically to "no matching
+  // documents" — misleading the user into thinking their filters just don't match
+  // anything.
+  const status = (data as { status?: unknown } | undefined)?.status
+  if (!isSuccessStatus(status)) {
+    throw new Error(getEnvelopeErrorMessage(data, 'Search failed. Please try again.'))
+  }
+
   const parsed = searchResponseSchema.safeParse(data)
 
   if (!parsed.success) {

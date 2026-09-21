@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { getEnvelopeErrorMessage, isSuccessStatus } from '@/lib/apiEnvelope'
+
+export { isSuccessStatus }
 
 export const mobileNumberSchema = z
   .string()
@@ -32,19 +35,8 @@ export const authResponseSchema = z
   })
   .passthrough()
 
-export function isSuccessStatus(status: unknown): boolean {
-  if (typeof status === 'boolean') return status
-  if (typeof status === 'number') return status === 1 || status === 200
-  if (typeof status === 'string') return ['true', '1', 'success', 'ok'].includes(status.toLowerCase())
-  return false
-}
-
 export function getAuthErrorMessage(payload: unknown, fallback: string): string {
-  const parsed = authResponseSchema.safeParse(payload)
-  if (!parsed.success) return fallback
-  if (typeof parsed.data.data === 'string') return parsed.data.data
-  if (parsed.data.message) return parsed.data.message
-  return fallback
+  return getEnvelopeErrorMessage(payload, fallback)
 }
 
 export function extractToken(payload: unknown): string | undefined {
