@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { useUploadDocument, type RecentUpload } from '@/hooks/useUploadDocument'
 import { useRecentUploads } from '@/hooks/useRecentUploads'
+import { useAutoTagSuggestions } from '@/hooks/useAutoTagSuggestions'
 import { TagInput } from '@/components/common/TagInput'
 import { isoToApiDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/errors'
@@ -40,6 +41,7 @@ export function UploadForm() {
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
   const [file, setFile] = useState<File | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const { suggestions, isSuggesting, requestSuggestions, clearSuggestions } = useAutoTagSuggestions()
 
   const minorOptions = useMemo(() => minorHeadOptions(form.majorHead), [form.majorHead])
 
@@ -50,6 +52,32 @@ export function UploadForm() {
   function resetForm() {
     setForm(INITIAL_STATE)
     setFile(null)
+    clearSuggestions()
+  }
+
+  // Bonus 7.2 (mock AI auto-tagging / OCR simulation): re-run whenever the file
+  // or category context changes, so the suggestions stay relevant. Remarks are
+  // intentionally left out of the dependency list — re-running on every keystroke
+  // would spin up a new worker constantly; the request still reads the latest
+  // remarks value via closure when it does fire.
+  useEffect(() => {
+    if (!file) {
+      clearSuggestions()
+      return
+    }
+    requestSuggestions({
+      fileName: file.name,
+      fileType: file.type,
+      majorHead: form.majorHead,
+      minorHead: form.minorHead,
+      remarks: form.remarks,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file, form.majorHead, form.minorHead])
+
+  function addSuggestedTag(tag: string) {
+    if (form.tags.includes(tag)) return
+    updateField('tags', [...form.tags, tag])
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -183,6 +211,34 @@ export function UploadForm() {
             Tags
           </label>
           <TagInput id="upload-tags" value={form.tags} onChange={(tags) => updateField('tags', tags)} />
+
+          {(isSuggesting || suggestions.length > 0) && (
+            <div className="mt-2">
+              <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded">
+                  Bonus
+                </span>
+                AI-suggested tags (mock OCR)
+                {isSuggesting && ' — analyzing file…'}
+              </p>
+              {!isSuggesting && suggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {suggestions
+                    .filter((tag) => !form.tags.includes(tag))
+                    .map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => addSuggestedTag(tag)}
+                        className="text-xs font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-full px-2.5 py-1 transition-colors"
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div>

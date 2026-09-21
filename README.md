@@ -17,6 +17,8 @@ and ZIP download — built against the API described in the provided Postman col
 | ZIP generation | `fflate`, run inside a native Web Worker |
 | Styling | Tailwind CSS |
 | Tests | Vitest + React Testing Library |
+| Bonus: NL date parsing | `chrono-node` (client-side, no LLM/API key) |
+| Bonus: mock auto-tagging | Native Web Worker (mock in place of real OCR — allowed by the brief) |
 
 The backend Postman collection used to build this integration is included at
 [`postman/allsoft-document-management.postman_collection.json`](postman/allsoft-document-management.postman_collection.json).
@@ -98,8 +100,25 @@ routes (`/login`, `/admin/create-user`, `/`) don't 404 on a hard refresh.
      "cached" banner. A top-level [`NetworkStatusBanner`](src/components/common/NetworkStatusBanner.tsx)
      tracks `online`/`offline` events.
 
-Section 7 (bonus AI features) was intentionally skipped to prioritize the mandatory
-scope above.
+7. **Bonus: AI-driven & smart features** (attempted after 1–6 were complete and deployed)
+   - **7.1 Natural language search bar** —
+     [`NaturalLanguageSearchBar`](src/components/search/NaturalLanguageSearchBar.tsx) +
+     [`parseNaturalLanguageQuery`](src/lib/nlSearchParser.ts): parses a plain-English
+     query like *"Find HR files from last week"* into structured filters entirely
+     client-side — `chrono-node` for date phrases ("last week", "in March 2024",
+     "yesterday"), keyword matching against the app's known
+     departments/names/categories, and `#hashtag` / "tagged as X" for tags. No LLM
+     endpoint or API key involved. The parsed filters populate the regular
+     `SearchForm` fields (with a summary of what was understood) rather than
+     searching blindly, so a keyword-based parser's guesses stay reviewable.
+   - **7.2 AI auto-tagging / OCR simulation** —
+     [`src/workers/autoTagWorker.ts`](src/workers/autoTagWorker.ts) +
+     [`useAutoTagSuggestions`](src/hooks/useAutoTagSuggestions.ts): the assignment
+     brief explicitly allows "a mock worker" here instead of real OCR, which avoids
+     shipping a multi-MB Tesseract.js WASM bundle for a graded demo. Runs in a real
+     Web Worker (same off-main-thread shape a real OCR/vision call would use) and
+     suggests tags from the filename, remarks, and selected category/department —
+     shown as clickable chips under the tag input in `UploadForm`.
 
 ## Architecture notes
 

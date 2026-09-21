@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useSearchDocuments } from '@/hooks/useSearchDocuments'
 import { Spinner } from '@/components/common/Spinner'
 import { EMPTY_SEARCH_FILTERS, SearchForm, type SearchFilterState } from '@/components/search/SearchForm'
+import { NaturalLanguageSearchBar } from '@/components/search/NaturalLanguageSearchBar'
 import { ResultsList } from '@/components/search/ResultsList'
 import { isoToApiDate } from '@/lib/date'
 import type { SearchRequest } from '@/types/document'
@@ -39,6 +40,8 @@ export function SearchPage() {
 
   return (
     <div className="space-y-6">
+      <NaturalLanguageSearchBar onApply={(parsed) => setFilters((prev) => ({ ...prev, ...parsed }))} />
+
       <SearchForm
         filters={filters}
         onChange={setFilters}
